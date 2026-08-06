@@ -3,42 +3,90 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>الصفحة الرئيسية</title>
-    
-    <!-- ربط ملف الـ CSS المنفصل -->
+    <title>سوبر ويب — لوحة الأدوات</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
     <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body class="app-body">
 
-    <!-- شريط الملاحة (Navbar) -->
-    <header class="navbar">
-        <div class="logo">
-            <a href="index.html">المشروع</a>
-        </div>
-        <nav class="nav-links">
-            <a href="index.html" class="active">الرئيسية</a>
-            <a href="login.html" class="btn-login-link">تسجيل الدخول</a>
-        </nav>
-    </header>
+    <!-- طبقة تعتيم للموبايل لما الشريط الجانبي يفتح -->
+    <div id="sidebar-overlay" class="sidebar-overlay"></div>
 
-    <!-- المحتوى الرئيسي (Hero Section) -->
-    <main class="main-content">
-        <section class="hero-section">
-            <h1>مرحباً بك في الموقع</h1>
-            <p>هذه صفحة رئيسية مرنة قابلة للتعديل والتحوير في أي وقت حسب متطلبات المشروع.</p>
-            <div class="cta-group">
-                <a href="login.html" class="btn-primary">انتقل لتسجيل الدخول</a>
+    <div class="app-shell">
+
+        <!-- ==================== الشريط الجانبي ==================== -->
+        <aside id="app-sidebar" class="app-sidebar">
+            <div class="sidebar-brand">
+                <span class="brand-mark">SW</span>
+                <div class="brand-text">
+                    <span class="brand-name">سوبر ويب</span>
+                    <span class="brand-tag">super-web · v1.0</span>
+                </div>
             </div>
-        </section>
-    </main>
 
-    <!-- تذييل الصفحة (Footer) -->
-    <footer class="footer">
-        <p>&copy; 2026 جميع الحقوق محفوظة.</p>
-    </footer>
+            <nav class="sidebar-nav">
+                <a href="index.html" class="sidebar-link is-active">
+                    <span class="sidebar-link-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v9a1 1 0 0 0 1 1H9a1 1 0 0 0 1-1v-4a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v4a1 1 0 0 0 1 1h2.5a1 1 0 0 0 1-1v-9"/></svg>
+                    </span>
+                    <span class="sidebar-link-text">الرئيسية</span>
+                </a>
 
-    <!-- ربط ملف الـ JavaScript المنفصل -->
-    <script src="script.js" defer></script>
+                <div class="sidebar-section-label">الأدوات</div>
+                <div id="sidebar-tools-list" class="sidebar-tools-list">
+                    <!-- بتتملى تلقائياً من tools-config.js -->
+                </div>
+            </nav>
+
+            <div id="sidebar-user-box" class="sidebar-user-box">
+                <!-- بتتملى تلقائياً حسب حالة تسجيل الدخول -->
+            </div>
+        </aside>
+
+        <!-- ==================== المحتوى الرئيسي ==================== -->
+        <div class="app-main">
+
+            <header class="app-topbar">
+                <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-label="فتح القائمة">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3.5 6.5h17M3.5 12h17M3.5 17.5h17"/></svg>
+                </button>
+                <span class="topbar-path">~ / الرئيسية</span>
+            </header>
+
+            <main class="app-content">
+
+                <!-- ============ قسم الترحيب ============ -->
+                <section class="hero-welcome">
+                    <span class="hero-eyebrow">$ status: كل الأدوات جاهزة للتشغيل</span>
+                    <h1 class="hero-title">أهلاً بيك في <span class="hero-title-accent">سوبر ويب</span></h1>
+                    <p class="hero-subtitle">
+                        مساحة واحدة لكل الأدوات اللي بتشتغل عليها — من فحص المواقع للترجمة
+                        لإنشاء المحتوى، كل أداة جديدة بتنضم للوحة دي تلقائياً.
+                    </p>
+                </section>
+
+                <!-- ============ شبكة الأدوات ============ -->
+                <section class="tools-section">
+                    <div class="tools-section-header">
+                        <h2>الأدوات المتاحة</h2>
+                        <span class="tools-count-badge" id="tools-count-badge"></span>
+                    </div>
+
+                    <div id="tools-grid" class="tools-grid">
+                        <!-- بتتملى تلقائياً من tools-config.js -->
+                    </div>
+                </section>
+
+            </main>
+        </div>
+    </div>
+
+    <script src="tools-config.js" defer></script>
+    <script src="app.js" defer></script>
 
 </body>
 </html>
