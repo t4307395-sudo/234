@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إنشاء حساب جديد</title>
+
+    <!-- مكتبة Google Identity Services -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <main class="login-container">
+        <section class="login-card">
+
+            <header class="login-header">
+                <h1>إنشاء حساب جديد</h1>
+                <p>سجّل بياناتك عشان تنشئ حسابك في دقيقة</p>
+            </header>
+
+            <!-- التسجيل عبر جوجل (بيعمل حساب جديد تلقائياً لو الإيميل مش موجود) -->
+            <div class="social-login">
+                <div id="g_id_onload"
+                     data-client_id="205809787174-a73p118a4mmkpn6cju1dnqcm07eut7v4.apps.googleusercontent.com"
+                     data-context="signup"
+                     data-ux_mode="popup"
+                     data-callback="handleGoogleLogin"
+                     data-close_on_tap_outside="false"
+                     data-itp_support="true">
+                </div>
+
+                <div class="g_id_signin"
+                     data-type="standard"
+                     data-shape="pill"
+                     data-theme="outline"
+                     data-text="signup_with"
+                     data-size="large"
+                     data-logo_alignment="left">
+                </div>
+            </div>
+
+            <div class="divider">
+                <span>أو</span>
+            </div>
+
+            <form id="register-form" action="#" method="POST" novalidate>
+
+                <div class="form-group">
+                    <label for="reg-name">الاسم بالكامل</label>
+                    <input type="text" id="reg-name" name="name" placeholder="اسمك" required autocomplete="name">
+                </div>
+
+                <div class="form-group">
+                    <label for="reg-email">البريد الإلكتروني</label>
+                    <input type="email" id="reg-email" name="email" placeholder="name@example.com" required autocomplete="email">
+                </div>
+
+                <div class="form-group">
+                    <label for="reg-password">كلمة المرور</label>
+                    <input type="password" id="reg-password" name="password" placeholder="6 حروف على الأقل" required autocomplete="new-password">
+                </div>
+
+                <div class="form-group">
+                    <label for="reg-confirm-password">تأكيد كلمة المرور</label>
+                    <input type="password" id="reg-confirm-password" name="confirm_password" placeholder="أعد كتابة كلمة المرور" required autocomplete="new-password">
+                </div>
+
+                <button type="submit" class="btn-primary" id="register-submit-btn">إنشاء الحساب</button>
+
+            </form>
+
+            <footer class="login-footer">
+                <p>عندك حساب بالفعل؟ <a href="login.html">تسجيل الدخول</a></p>
+            </footer>
+
+        </section>
+    </main>
+
+    <script src="script.js" defer></script>
+
+</body>
+</html>
