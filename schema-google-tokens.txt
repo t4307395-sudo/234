@@ -1,9 +1,0 @@
-CREATE TABLE IF NOT EXISTS google_tokens (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_email TEXT UNIQUE NOT NULL,
-    access_token TEXT NOT NULL,
-    refresh_token TEXT,
-    expires_at INTEGER NOT NULL,
-    spreadsheet_id TEXT,
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP
-);
