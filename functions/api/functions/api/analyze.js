@@ -3,6 +3,11 @@
  * محلل المواقع: سرعة + أمان + SEO أساسي + توصيات AI
  * المفاتيح المستخدمة: EXT_TOKEN_MAIN (PageSpeed + Safe Browsing + Custom Search)
  *                      env.GEMINI_API_KEY (Google AI Studio - Gemini API)
+ *
+ * ملاحظة: النسخة دي فيها سطر تشخيص مؤقت (DEBUG) بيوضح أسماء
+ * كل المتغيرات اللي الفانكشن شايفها فعليًا وقت التشغيل، عشان
+ * نعرف نتأكد ليه GEMINI_API_KEY مش بيوصل. لما تتأكد من المشكلة
+ * وتحلها، رجّع السطر ده زي ما كان (هوريك بعدين).
  */
 export async function onRequestPost(context) {
     const { request, env } = context;
@@ -11,7 +16,8 @@ export async function onRequestPost(context) {
         return jsonError('مفتاح الخدمات الخارجية غير مربوط بالمشروع (EXT_TOKEN_MAIN).', 500);
     }
     if (!env.GEMINI_API_KEY) {
-        return jsonError('مفتاح Gemini غير مربوط بالمشروع (GEMINI_API_KEY).', 500);
+        // === سطر التشخيص المؤقت ===
+        return jsonError('DEBUG KEYS: ' + Object.keys(env).join(', '), 500);
     }
 
     let body;
