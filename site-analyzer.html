@@ -87,28 +87,29 @@
                 <!-- ============ النتائج ============ -->
                 <section id="analyze-results" class="analyzer-results" style="display:none;">
 
-                    <div class="results-grid">
-                        <div class="result-card">
-                            <span class="result-card-label">سرعة الأداء</span>
-                            <span class="result-card-value" id="result-performance">—</span>
+                    <!-- ملخص عام + دوائر النتائج -->
+                    <div class="report-overview">
+                        <div class="score-gauges" id="score-gauges">
+                            <!-- بيتولد ديناميكياً -->
                         </div>
-                        <div class="result-card">
-                            <span class="result-card-label">تقييم SEO</span>
-                            <span class="result-card-value" id="result-seo">—</span>
-                        </div>
-                        <div class="result-card">
-                            <span class="result-card-label">إمكانية الوصول</span>
-                            <span class="result-card-value" id="result-accessibility">—</span>
-                        </div>
-                        <div class="result-card">
-                            <span class="result-card-label">الأمان</span>
-                            <span class="result-card-value" id="result-safety">—</span>
+
+                        <div class="report-summary-strip" id="report-summary-strip">
+                            <!-- بيتولد ديناميكياً -->
                         </div>
                     </div>
 
+                    <!-- الحلول المقترحة -->
                     <div class="result-block">
-                        <h3>أهم الأولويات</h3>
-                        <ul id="result-priorities" class="priorities-list"></ul>
+                        <div class="fixes-header">
+                            <h3 id="fixes-count">الحلول المقترحة</h3>
+                            <div class="fixes-filter" id="fixes-filter">
+                                <button class="filter-chip is-active" data-filter="all">الكل</button>
+                                <button class="filter-chip" data-filter="critical">حرجة</button>
+                                <button class="filter-chip" data-filter="high">مهمة</button>
+                                <button class="filter-chip" data-filter="medium">بسيطة</button>
+                            </div>
+                        </div>
+                        <div id="result-fixes" class="fixes-list"></div>
                     </div>
 
                     <div class="result-block">
