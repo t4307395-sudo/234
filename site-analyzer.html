@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>محلل المواقع — سوبر ويب</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="app-body">
+
+    <div id="sidebar-overlay" class="sidebar-overlay"></div>
+
+    <div class="app-shell">
+
+        <aside id="app-sidebar" class="app-sidebar">
+            <div class="sidebar-brand">
+                <span class="brand-mark">SW</span>
+                <div class="brand-text">
+                    <span class="brand-name">سوبر ويب</span>
+                    <span class="brand-tag">super-web · v1.0</span>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="index.html" class="sidebar-link">
+                    <span class="sidebar-link-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v9a1 1 0 0 0 1 1H9a1 1 0 0 0 1-1v-4a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v4a1 1 0 0 0 1 1h2.5a1 1 0 0 0 1-1v-9"/></svg>
+                    </span>
+                    <span class="sidebar-link-text">الرئيسية</span>
+                </a>
+
+                <div class="sidebar-section-label">الأدوات</div>
+                <div id="sidebar-tools-list" class="sidebar-tools-list"></div>
+            </nav>
+
+            <div id="sidebar-user-box" class="sidebar-user-box"></div>
+        </aside>
+
+        <div class="app-main">
+
+            <header class="app-topbar">
+                <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-label="فتح القائمة">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3.5 6.5h17M3.5 12h17M3.5 17.5h17"/></svg>
+                </button>
+                <span class="topbar-path">~ / site-analyzer.html</span>
+            </header>
+
+            <main class="app-content">
+
+                <section class="hero-welcome">
+                    <span class="hero-eyebrow">$ tool: site-analyzer</span>
+                    <h1 class="hero-title">محلل <span class="hero-title-accent">المواقع</span></h1>
+                    <p class="hero-subtitle">
+                        حط أي رابط واحصل على تقرير سرعة وأمان وأرشفة، مع توصيات جاهزة من الذكاء الاصطناعي.
+                    </p>
+                </section>
+
+                <!-- ============ فورم الفحص ============ -->
+                <section class="analyzer-input-section">
+                    <form id="analyze-form" class="analyzer-form">
+                        <input
+                            type="url"
+                            id="analyze-url"
+                            class="analyzer-input"
+                            placeholder="https://example.com"
+                            required
+                        >
+                        <button type="submit" id="analyze-btn" class="btn-primary analyzer-submit">
+                            ابدأ الفحص
+                        </button>
+                    </form>
+                </section>
+
+                <!-- ============ حالة التحميل ============ -->
+                <div id="analyze-loading" class="analyzer-loading" style="display:none;">
+                    <div class="loading-spinner"></div>
+                    <span>بنفحص الموقع، ثواني وهنخلص...</span>
+                </div>
+
+                <!-- ============ النتائج ============ -->
+                <section id="analyze-results" class="analyzer-results" style="display:none;">
+
+                    <div class="results-grid">
+                        <div class="result-card">
+                            <span class="result-card-label">سرعة الأداء</span>
+                            <span class="result-card-value" id="result-performance">—</span>
+                        </div>
+                        <div class="result-card">
+                            <span class="result-card-label">تقييم SEO</span>
+                            <span class="result-card-value" id="result-seo">—</span>
+                        </div>
+                        <div class="result-card">
+                            <span class="result-card-label">إمكانية الوصول</span>
+                            <span class="result-card-value" id="result-accessibility">—</span>
+                        </div>
+                        <div class="result-card">
+                            <span class="result-card-label">الأمان</span>
+                            <span class="result-card-value" id="result-safety">—</span>
+                        </div>
+                    </div>
+
+                    <div class="result-block">
+                        <h3>أهم الأولويات</h3>
+                        <ul id="result-priorities" class="priorities-list"></ul>
+                    </div>
+
+                    <div class="result-block">
+                        <h3>وصف Meta مقترح <button class="copy-btn" data-copy-target="result-meta">نسخ</button></h3>
+                        <code id="result-meta" class="result-code"></code>
+                    </div>
+
+                    <div class="result-block">
+                        <h3>كود Schema Markup جاهز <button class="copy-btn" data-copy-target="result-schema">نسخ</button></h3>
+                        <pre id="result-schema" class="result-code result-code--block"></pre>
+                    </div>
+
+                    <div class="result-block result-block--save">
+                        <div id="drive-not-connected">
+                            <p>عايز تحتفظ بتاريخ فحوصاتك؟</p>
+                            <button id="connect-drive-btn" class="btn-primary">اربط Drive بتاعك</button>
+                        </div>
+                        <div id="drive-connected" style="display:none;">
+                            <button id="save-report-btn" class="btn-primary">احفظ النتيجة في Drive</button>
+                            <a id="sheet-link" href="#" target="_blank" style="display:none;">افتح سجل الفحوصات ←</a>
+                        </div>
+                    </div>
+
+                </section>
+
+            </main>
+        </div>
+    </div>
+
+    <script src="tools-config.js" defer></script>
+    <script src="app.js" defer></script>
+    <script src="site-analyzer.js" defer></script>
+
+</body>
+</html>
