@@ -3,7 +3,7 @@
  */
 
 const GOOGLE_CLIENT_ID = '205809787174-a73p118a4mmkpn6cju1dnqcm07eut7v4.apps.googleusercontent.com';
-const DRIVE_SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets';
+const DRIVE_SCOPES = 'https://www.googleapis.com/auth/drive.file';
 
 let lastReport = null;
 let driveCodeClient = null;
@@ -176,7 +176,7 @@ function setupDriveConnection() {
                 }
 
                 const link = document.getElementById('sheet-link');
-                link.href = data.spreadsheetUrl;
+                link.href = data.reportUrl;
                 link.style.display = 'inline-block';
                 alert('تم الحفظ بنجاح!');
 
