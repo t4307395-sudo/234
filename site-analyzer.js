@@ -1,5 +1,5 @@
 /**
- * منطق صفحة محلل المواقع: الفحص + عرض النتائج + ربط Drive + الحفظ
+ * منطق صفحة محلل المواقع: الفحص + عرض النتائج + ربط Drive الحفظ
  */
 
 const GOOGLE_CLIENT_ID = '205809787174-a73p118a4mmkpn6cju1dnqcm07eut7v4.apps.googleusercontent.com';
