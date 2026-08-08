@@ -62,8 +62,8 @@
                     </p>
                 </section>
 
-                <!-- ============ فورم الفحص ============ -->
-                <section class="analyzer-input-section">
+                <!-- ============ فورم الفحص (يظهر بس لو مسجل دخول) ============ -->
+                <section class="analyzer-input-section" id="analyzer-input-section">
                     <form id="analyze-form" class="analyzer-form">
                         <input
                             type="url"
@@ -78,14 +78,25 @@
                     </form>
                 </section>
 
+                <!-- ============ رسالة تسجيل الدخول الإجباري ============ -->
+                <section class="login-required-box" id="login-required-box" style="display:none;">
+                    <p>لازم تسجّل دخول الأول عشان تقدر تستخدم الأداة</p>
+                    <a href="login.html" class="btn-primary">تسجيل الدخول</a>
+                </section>
+
                 <!-- ============ حالة التحميل ============ -->
                 <div id="analyze-loading" class="analyzer-loading" style="display:none;">
                     <div class="loading-spinner"></div>
-                    <span>بنفحص الموقع، ثواني وهنخلص...</span>
+                    <span id="loading-step-text">بنفحص الموقع...</span>
                 </div>
 
                 <!-- ============ النتائج ============ -->
                 <section id="analyze-results" class="analyzer-results" style="display:none;">
+
+                    <div class="results-top-bar">
+                        <div id="comparison-badge" class="comparison-badge" style="display:none;"></div>
+                        <button id="print-report-btn" class="print-btn">🖨️ تصدير PDF / طباعة</button>
+                    </div>
 
                     <!-- ملخص عام + دوائر النتائج -->
                     <div class="report-overview">

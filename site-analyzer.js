@@ -5,14 +5,41 @@
 const GOOGLE_CLIENT_ID = '205809787174-a73p118a4mmkpn6cju1dnqcm07eut7v4.apps.googleusercontent.com';
 const DRIVE_SCOPES = 'https://www.googleapis.com/auth/drive.file';
 
+const LOADING_STEPS = [
+    'بنفحص أداء الموبايل...',
+    'بنفحص أداء الديسكتوب...',
+    'بنتأكد من الأمان...',
+    'بنحلل الأرشفة (SEO)...',
+    'بنولّد التوصيات بالذكاء الاصطناعي...'
+];
+
 let lastReport = null;
 let driveCodeClient = null;
+let loadingStepInterval = null;
 
 function getCurrentUser() {
     try {
         return JSON.parse(localStorage.getItem('user'));
     } catch {
         return null;
+    }
+}
+
+function startLoadingSteps() {
+    const el = document.getElementById('loading-step-text');
+    if (!el) return;
+    let i = 0;
+    el.textContent = LOADING_STEPS[0];
+    loadingStepInterval = setInterval(() => {
+        i = (i + 1) % LOADING_STEPS.length;
+        el.textContent = LOADING_STEPS[i];
+    }, 2200);
+}
+
+function stopLoadingSteps() {
+    if (loadingStepInterval) {
+        clearInterval(loadingStepInterval);
+        loadingStepInterval = null;
     }
 }
 
@@ -23,6 +50,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const form = document.getElementById('analyze-form');
     if (!form) return;
 
+    // تسجيل الدخول إجباري لاستخدام الأداة
+    const currentUser = getCurrentUser();
+    if (!currentUser || !currentUser.email) {
+        document.getElementById('analyzer-input-section').style.display = 'none';
+        document.getElementById('login-required-box').style.display = 'block';
+        return; // منوقفش أي Listeners تانية، الأداة كلها متعطلة لغير المسجلين
+    }
+
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
 
@@ -32,22 +67,28 @@ document.addEventListener('DOMContentLoaded', () => {
         const btn = document.getElementById('analyze-btn');
         const loading = document.getElementById('analyze-loading');
         const results = document.getElementById('analyze-results');
+        const user = getCurrentUser();
 
         btn.disabled = true;
         loading.style.display = 'flex';
         results.style.display = 'none';
+        startLoadingSteps();
 
         try {
             const res = await fetch('/api/analyze', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ url })
+                body: JSON.stringify({ url, email: user?.email || null })
             });
 
             const data = await res.json();
 
             if (!res.ok || data.error) {
-                alert(data.error || 'حصل خطأ أثناء الفحص');
+                if (res.status === 429) {
+                    alert(data.error || 'وصلت للحد الأقصى من الفحوصات اليوم (3 فحوصات). حاول تاني بكرة.');
+                } else {
+                    alert(data.error || 'حصل خطأ أثناء الفحص');
+                }
                 return;
             }
 
@@ -61,6 +102,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } finally {
             btn.disabled = false;
             loading.style.display = 'none';
+            stopLoadingSteps();
         }
     });
 
@@ -68,6 +110,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupCopyButtons();
     setupFixesFilter();
     setupDeviceTabs();
+    setupPrintButton();
 });
 
 const SEVERITY_LABELS = {
@@ -87,12 +130,49 @@ function renderResults(data) {
     renderFixes();
     renderSummaryStrip();
     renderKeyIndicator(data.aiRecommendations?.keyUsed);
+    renderComparisonBadge(data.comparison, data.fromCache);
 
     document.getElementById('result-meta').textContent =
         data.aiRecommendations?.suggestedMetaDescription || 'لا توجد توصية';
 
     document.getElementById('result-schema').textContent =
         data.aiRecommendations?.schemaMarkup || 'لا يوجد كود مقترح';
+}
+
+// ============================================================
+// كارت مقارنة "قبل وبعد" مع آخر فحص سابق
+// ============================================================
+function renderComparisonBadge(comparison, fromCache) {
+    const badge = document.getElementById('comparison-badge');
+    if (!badge) return;
+
+    if (fromCache) {
+        badge.style.display = 'inline-flex';
+        badge.className = 'comparison-badge comparison-badge--cache';
+        badge.textContent = '⚡ نتيجة من الكاش (اتفحص قبل كده خلال آخر ساعة)';
+        return;
+    }
+
+    if (!comparison || comparison.performanceDelta == null) {
+        badge.style.display = 'none';
+        return;
+    }
+
+    const delta = comparison.performanceDelta;
+    const arrow = delta > 0 ? '↑' : delta < 0 ? '↓' : '→';
+    const cls = delta > 0 ? 'comparison-badge--up' : delta < 0 ? 'comparison-badge--down' : 'comparison-badge--same';
+
+    badge.style.display = 'inline-flex';
+    badge.className = `comparison-badge ${cls}`;
+    badge.textContent = delta === 0
+        ? 'الأداء زي آخر فحص بالظبط'
+        : `${arrow} الأداء ${delta > 0 ? 'تحسّن' : 'قلّ'} ${Math.abs(delta)} نقطة منذ آخر فحص`;
+}
+
+function setupPrintButton() {
+    const btn = document.getElementById('print-report-btn');
+    if (!btn) return;
+    btn.addEventListener('click', () => window.print());
 }
 
 // ============================================================

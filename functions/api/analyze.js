@@ -12,6 +12,9 @@ export async function onRequestPost(context) {
     if (!env.EXT_TOKEN_MAIN) {
         return jsonError('مفتاح الخدمات الخارجية غير مربوط بالمشروع (EXT_TOKEN_MAIN).', 500);
     }
+    if (!env.DB) {
+        return jsonError('قاعدة البيانات غير مربوطة بالمشروع (DB).', 500);
+    }
 
     let body;
     try {
@@ -20,9 +23,39 @@ export async function onRequestPost(context) {
         return jsonError('بيانات الطلب غير صحيحة.', 400);
     }
 
-    const { url } = body;
+    const { url, email } = body;
     if (!url || !isValidUrl(url)) {
         return jsonError('من فضلك أدخل رابط صحيح يبدأ بـ http:// أو https://', 400);
+    }
+
+    // تسجيل الدخول إجباري لاستخدام الأداة
+    if (!email) {
+        return jsonError('لازم تسجّل دخول الأول عشان تقدر تستخدم الأداة.', 401);
+    }
+
+    const userExists = await env.DB.prepare("SELECT id FROM users WHERE email = ?").bind(email).first();
+    if (!userExists) {
+        return jsonError('الحساب ده مش موجود، سجّل دخول تاني.', 401);
+    }
+
+    // المعرّف: الإيميل بس (تسجيل الدخول إجباري دلوقتي)
+    const identifier = email;
+
+    // 1) تحقق من الكاش الأول (ساعة واحدة) قبل أي حاجة تانية
+    const cached = await getCachedResult(env, url);
+    if (cached) {
+        return new Response(JSON.stringify({ ...cached, fromCache: true }), {
+            headers: { 'Content-Type': 'application/json' }
+        });
+    }
+
+    // 2) تحقق من الحد اليومي (3 فحوصات فقط، الكاش مبيتحسبش منها)
+    const limitCheck = await checkAndIncrementLimit(env, identifier);
+    if (!limitCheck.allowed) {
+        return jsonError(
+            `وصلت للحد الأقصى (3 فحوصات في اليوم). حاول تاني بكرة، أو جرب رابط فحصته قبل كده هيرجع من الكاش فوراً.`,
+            429
+        );
     }
 
     const apiKey = env.EXT_TOKEN_MAIN;
@@ -49,7 +82,10 @@ export async function onRequestPost(context) {
 
         const aiRecommendations = await generateAIRecommendations(env, url, allAudits, safety, seo);
 
-        return new Response(JSON.stringify({
+        // 3) قارن بآخر فحص سابق لنفس الرابط ونفس الحساب/IP
+        const comparison = await getComparison(env, identifier, url, mobile?.performanceScore, mobile?.seoScore);
+
+        const responseData = {
             success: true,
             url,
             checkedAt: new Date().toISOString(),
@@ -57,13 +93,115 @@ export async function onRequestPost(context) {
             desktop: desktop ? stripAudits(desktop) : null,
             safety,
             seo,
-            aiRecommendations
-        }), {
+            aiRecommendations,
+            comparison
+        };
+
+        // احفظ في الكاش وفي السجل التاريخي (من غير ما نستنى، مش لازم نأخر الرد بسببهم)
+        context.waitUntil(saveToCache(env, url, responseData));
+        context.waitUntil(saveToHistory(env, identifier, url, mobile?.performanceScore, mobile?.seoScore));
+
+        return new Response(JSON.stringify(responseData), {
             headers: { 'Content-Type': 'application/json' }
         });
 
     } catch (err) {
         return jsonError(err.message, 500);
+    }
+}
+
+// ============================================================
+// الكاش (ساعة واحدة لكل رابط)
+// ============================================================
+async function getCachedResult(env, url) {
+    try {
+        const row = await env.DB.prepare(
+            "SELECT result_json, cached_at FROM analysis_cache WHERE url = ?"
+        ).bind(url).first();
+
+        if (!row) return null;
+
+        const ageMs = Date.now() - row.cached_at;
+        if (ageMs > 60 * 60 * 1000) return null; // أقدم من ساعة
+
+        return JSON.parse(row.result_json);
+    } catch {
+        return null; // لو الجدول لسه مش موجود، منكملش الطلب من غير كاش
+    }
+}
+
+async function saveToCache(env, url, data) {
+    try {
+        await env.DB.prepare(
+            "INSERT INTO analysis_cache (url, result_json, cached_at) VALUES (?, ?, ?) " +
+            "ON CONFLICT(url) DO UPDATE SET result_json = excluded.result_json, cached_at = excluded.cached_at"
+        ).bind(url, JSON.stringify(data), Date.now()).run();
+    } catch {
+        // متعمّد: فشل الكاش مايوقفش الطلب الأساسي
+    }
+}
+
+// ============================================================
+// الحد اليومي (3 فحوصات لكل حساب/IP)
+// ============================================================
+async function checkAndIncrementLimit(env, identifier) {
+    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+
+    try {
+        const row = await env.DB.prepare(
+            "SELECT count FROM scan_limits WHERE identifier = ? AND scan_date = ?"
+        ).bind(identifier, today).first();
+
+        const currentCount = row?.count || 0;
+
+        if (currentCount >= 3) {
+            return { allowed: false };
+        }
+
+        await env.DB.prepare(
+            "INSERT INTO scan_limits (identifier, scan_date, count) VALUES (?, ?, 1) " +
+            "ON CONFLICT(identifier, scan_date) DO UPDATE SET count = count + 1"
+        ).bind(identifier, today).run();
+
+        return { allowed: true };
+    } catch {
+        return { allowed: true }; // لو الجدول لسه مش موجود، منمنعش المستخدم بسبب مشكلة عندنا
+    }
+}
+
+// ============================================================
+// مقارنة "قبل وبعد" مع آخر فحص سابق لنفس الرابط
+// ============================================================
+async function getComparison(env, identifier, url, newPerformance, newSeo) {
+    try {
+        const previous = await env.DB.prepare(
+            "SELECT performance_score, seo_score, checked_at FROM scan_history " +
+            "WHERE identifier = ? AND url = ? ORDER BY checked_at DESC LIMIT 1"
+        ).bind(identifier, url).first();
+
+        if (!previous) return null;
+
+        return {
+            previousPerformance: previous.performance_score,
+            previousSeo: previous.seo_score,
+            performanceDelta: newPerformance != null && previous.performance_score != null
+                ? newPerformance - previous.performance_score : null,
+            seoDelta: newSeo != null && previous.seo_score != null
+                ? newSeo - previous.seo_score : null,
+            previousCheckedAt: previous.checked_at
+        };
+    } catch {
+        return null;
+    }
+}
+
+async function saveToHistory(env, identifier, url, performanceScore, seoScore) {
+    try {
+        await env.DB.prepare(
+            "INSERT INTO scan_history (identifier, url, performance_score, seo_score, checked_at) VALUES (?, ?, ?, ?, ?)"
+        ).bind(identifier, url, performanceScore ?? null, seoScore ?? null, Date.now()).run();
+    } catch {
+        // متعمّد: فشل حفظ التاريخ مايوقفش الطلب الأساسي
     }
 }
 

@@ -1395,3 +1395,132 @@ a:hover {
     line-height: 1.7;
     padding-inline-start: 0.3rem;
 }
+
+/* ==========================================================================
+   شريط أعلى النتائج: مقارنة + طباعة
+   ========================================================================== */
+
+.results-top-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+}
+
+.comparison-badge {
+    display: none;
+    align-items: center;
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 0.5rem 1rem;
+    border-radius: 999px;
+}
+
+.comparison-badge--up {
+    background-color: #f0fdf4;
+    color: #15803d;
+    border: 1px solid #bbf7d0;
+}
+
+.comparison-badge--down {
+    background-color: #fef2f2;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
+}
+
+.comparison-badge--same {
+    background-color: var(--code-bg);
+    color: var(--text-muted);
+    border: 1px solid var(--code-border);
+}
+
+.comparison-badge--cache {
+    background-color: #eff6ff;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+}
+
+.print-btn {
+    font-family: var(--font-family);
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 0.5rem 1.1rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-color);
+    background-color: var(--card-bg);
+    color: var(--text-color);
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.print-btn:hover {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+/* ==========================================================================
+   أنماط الطباعة / تصدير PDF
+   ========================================================================== */
+
+@media print {
+    .app-sidebar,
+    .app-topbar,
+    .analyzer-form,
+    .print-btn,
+    .device-tabs,
+    .fixes-filter,
+    .copy-btn,
+    .result-block--save {
+        display: none !important;
+    }
+
+    .app-shell {
+        display: block !important;
+    }
+
+    .app-content {
+        padding: 0 !important;
+        max-width: 100% !important;
+    }
+
+    .device-panel {
+        display: block !important;
+    }
+
+    body {
+        background-color: #fff !important;
+    }
+
+    .fix-card, .result-block, .report-overview {
+        break-inside: avoid;
+        border: 1px solid #ddd !important;
+        box-shadow: none !important;
+    }
+}
+
+/* ==========================================================================
+   رسالة تسجيل الدخول الإجباري لاستخدام الأداة
+   ========================================================================== */
+
+.login-required-box {
+    background-color: var(--card-bg);
+    border: 1px dashed var(--border-color);
+    border-radius: var(--radius);
+    padding: 2.5rem 2rem;
+    text-align: center;
+    max-width: 480px;
+}
+
+.login-required-box p {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    margin-bottom: 1.25rem;
+}
+
+.login-required-box .btn-primary {
+    width: auto;
+    display: inline-block;
+    padding: 0.7rem 2rem;
+}
