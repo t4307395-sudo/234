@@ -1,17 +1,16 @@
 /**
  * Cloudflare Pages Function: /api/analyze
- * محلل المواقع: سرعة + أمان + SEO أساسي + توصيات AI
+ * محلل المواقع: سرعة (موبايل + ديسكتوب) + أمان + SEO أساسي + توصيات AI شاملة
  * المفاتيح المستخدمة: EXT_TOKEN_MAIN (PageSpeed + Safe Browsing + Custom Search)
- *                      env.GEMINI_API_KEY (Google AI Studio - Gemini API)
+ *                      GEMINI_API_KEY / GEMINI_API_KEY2 / GEMINI_API_KEY3 / GEMINI_API_KEY4
+ *                      (تدوير تلقائي بينهم + Fallback لو مفتاح خلّصت كوتته)
+ *                      env.DB (D1) لتخزين عداد التدوير
  */
 export async function onRequestPost(context) {
     const { request, env } = context;
 
     if (!env.EXT_TOKEN_MAIN) {
         return jsonError('مفتاح الخدمات الخارجية غير مربوط بالمشروع (EXT_TOKEN_MAIN).', 500);
-    }
-    if (!env.GEMINI_API_KEY) {
-        return jsonError('مفتاح Gemini غير مربوط بالمشروع (GEMINI_API_KEY).', 500);
     }
 
     let body;
@@ -29,25 +28,33 @@ export async function onRequestPost(context) {
     const apiKey = env.EXT_TOKEN_MAIN;
 
     try {
-        // تشغيل الفحوصات الثلاثة بالتوازي لتوفير الوقت
-        const [pageSpeedResult, safeBrowsingResult, pageContent] = await Promise.allSettled([
-            fetchPageSpeed(url, apiKey),
+        // تشغيل كل الفحوصات بالتوازي: موبايل + ديسكتوب + أمان + تحليل HTML
+        const [mobileResult, desktopResult, safeBrowsingResult, pageContent] = await Promise.allSettled([
+            fetchPageSpeed(url, apiKey, 'mobile'),
+            fetchPageSpeed(url, apiKey, 'desktop'),
             fetchSafeBrowsing(url, apiKey),
             fetchAndParsePage(url)
         ]);
 
-        const speed = pageSpeedResult.status === 'fulfilled' ? pageSpeedResult.value : null;
+        const mobile = mobileResult.status === 'fulfilled' ? mobileResult.value : null;
+        const desktop = desktopResult.status === 'fulfilled' ? desktopResult.value : null;
         const safety = safeBrowsingResult.status === 'fulfilled' ? safeBrowsingResult.value : null;
         const seo = pageContent.status === 'fulfilled' ? pageContent.value : null;
 
-        // توليد توصيات بالذكاء الاصطناعي بناءً على كل النتائج
-        const aiRecommendations = await generateAIRecommendations(env, url, speed, safety, seo);
+        // دمج مشاكل الموبايل والديسكتوب مع بعض (كل مشكلة موسومة بالجهاز)
+        const allAudits = [
+            ...(mobile?.actionableAudits || []).map(a => ({ ...a, device: 'mobile' })),
+            ...(desktop?.actionableAudits || []).map(a => ({ ...a, device: 'desktop' }))
+        ];
+
+        const aiRecommendations = await generateAIRecommendations(env, url, allAudits, safety, seo);
 
         return new Response(JSON.stringify({
             success: true,
             url,
             checkedAt: new Date().toISOString(),
-            speed,
+            mobile: mobile ? stripAudits(mobile) : null,
+            desktop: desktop ? stripAudits(desktop) : null,
             safety,
             seo,
             aiRecommendations
@@ -60,19 +67,25 @@ export async function onRequestPost(context) {
     }
 }
 
+// نشيل قائمة الأودتس التفصيلية من الرد النهائي (استخدمناها داخلياً بس مع الـAI)
+function stripAudits(deviceResult) {
+    const { actionableAudits, ...rest } = deviceResult;
+    return rest;
+}
+
 // ============================================================
-// فحص السرعة (PageSpeed Insights API) — الأرقام + كل التفاصيل
+// فحص السرعة (PageSpeed Insights API) — لجهاز واحد (موبايل/ديسكتوب)
 // ============================================================
-async function fetchPageSpeed(url, apiKey) {
+async function fetchPageSpeed(url, apiKey, strategy) {
     const endpoint = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed` +
         `?url=${encodeURIComponent(url)}` +
         `&key=${apiKey}` +
-        `&strategy=mobile` +
+        `&strategy=${strategy}` +
         `&category=performance&category=seo&category=accessibility`;
 
     const res = await fetch(endpoint);
     if (!res.ok) {
-        throw new Error(`تعذّر فحص السرعة (${res.status})`);
+        throw new Error(`تعذّر فحص ${strategy === 'mobile' ? 'الموبايل' : 'الديسكتوب'} (${res.status})`);
     }
     const data = await res.json();
     const lighthouse = data?.lighthouseResult || {};
@@ -80,21 +93,21 @@ async function fetchPageSpeed(url, apiKey) {
     const audits = lighthouse.audits || {};
 
     return {
+        strategy,
         performanceScore: Math.round((categories.performance?.score || 0) * 100),
         seoScore: Math.round((categories.seo?.score || 0) * 100),
         accessibilityScore: Math.round((categories.accessibility?.score || 0) * 100),
         firstContentfulPaint: audits['first-contentful-paint']?.displayValue || null,
         largestContentfulPaint: audits['largest-contentful-paint']?.displayValue || null,
         totalBlockingTime: audits['total-blocking-time']?.displayValue || null,
-        // كل المشاكل التفصيلية (فرص تحسين + تشخيصات) اللي الموقع فاشل فيها
+        // صورة فعلية للموقع من نفس الـAPI (مفيش مفتاح إضافي مطلوب)
+        screenshot: audits['final-screenshot']?.details?.data || null,
         actionableAudits: extractActionableAudits(lighthouse)
     };
 }
 
 // ============================================================
-// استخراج كل المشاكل الفعلية من تقرير Lighthouse الكامل
-// (مش بس الأرقام الملخّصة — دي كل التفاصيل اللي بتظهر في
-// التقرير الرسمي على pagespeed.web.dev بالظبط)
+// استخراج كل المشاكل (كبيرة وصغيرة) من تقرير Lighthouse الكامل
 // ============================================================
 function extractActionableAudits(lighthouse) {
     const audits = lighthouse.audits || {};
@@ -110,9 +123,14 @@ function extractActionableAudits(lighthouse) {
     for (const id of relevantIds) {
         const audit = audits[id];
         if (!audit) continue;
-        // نتجاهل اللي عدّى الفحص، أو مش قابل للتطبيق، أو محتاج مراجعة يدوية
-        if (audit.score === null || audit.score >= 0.9) continue;
         if (audit.scoreDisplayMode === 'notApplicable' || audit.scoreDisplayMode === 'manual') continue;
+
+        // نضم أي مشكلة معندهاش علامة كاملة (score < 1) وكمان أي فرصة توفير حقيقية حتى لو صغيرة
+        const hasOpportunity = audit.details?.type === 'opportunity' &&
+            ((audit.details.overallSavingsMs || 0) > 0 || (audit.details.overallSavingsBytes || 0) > 0);
+        const isImperfect = audit.score !== null && audit.score < 1;
+
+        if (!hasOpportunity && !isImperfect) continue;
 
         const entry = {
             id,
@@ -138,10 +156,9 @@ function extractActionableAudits(lighthouse) {
         results.push(entry);
     }
 
-    // الأولوية للأسوأ نتيجة الأول (الأكثر تأثيراً على النتيجة الكلية)
     results.sort((a, b) => (a.score ?? 1) - (b.score ?? 1));
 
-    return results.slice(0, 20); // حد أقصى 20 مشكلة عشان الطلب للـAI ميبقاش ضخم أوي
+    return results.slice(0, 30); // حد أقصى 30 مشكلة لكل جهاز عشان الطلب ميبقاش ضخم جداً
 }
 
 function stripMarkdownLinks(text) {
@@ -229,29 +246,82 @@ function extractAttr(html, regex) {
 }
 
 // ============================================================
-// توصيات الذكاء الاصطناعي (Gemini API) — تعليمات فعلية قابلة للتنفيذ
+// تدوير مفاتيح Gemini (Round-Robin عبر D1)
 // ============================================================
-async function generateAIRecommendations(env, url, speed, safety, seo) {
-    const audits = speed?.actionableAudits || [];
+function getGeminiKeys(env) {
+    return [env.GEMINI_API_KEY, env.GEMINI_API_KEY2, env.GEMINI_API_KEY3, env.GEMINI_API_KEY4]
+        .map((key, i) => ({ key, index: i + 1 }))
+        .filter(k => !!k.key);
+}
 
-    const prompt = `
-أنت مهندس ويب خبير في الأداء والأرشفة (SEO). قدّامك تقرير Lighthouse كامل لموقع ${url}،
-فيه كل المشاكل الحقيقية اللي الموقع فاشل فيها (مش ملخص، دي كل التفاصيل).
+async function getStartIndex(env, totalKeys) {
+    if (!env.DB || totalKeys <= 1) return 0;
 
-المشاكل المكتشفة (${audits.length} مشكلة، مرتبة من الأسوأ تأثيراً):
+    try {
+        const row = await env.DB.prepare(
+            `UPDATE api_key_rotation SET counter = (counter + 1) % ? WHERE id = 1 RETURNING counter`
+        ).bind(totalKeys).first();
+
+        return row ? row.counter : 0;
+    } catch {
+        // لو الجدول لسه مش موجود، نبدأ من أول مفتاح من غير ما نكسر الطلب
+        return 0;
+    }
+}
+
+// ============================================================
+// توصيات الذكاء الاصطناعي (Gemini API) — مع تدوير مفاتيح وFallback
+// ============================================================
+async function generateAIRecommendations(env, url, audits, safety, seo) {
+    const keys = getGeminiKeys(env);
+
+    if (keys.length === 0) {
+        return fallbackRecommendations('مفيش أي مفتاح Gemini مربوط بالمشروع.');
+    }
+
+    const prompt = buildPrompt(url, audits, safety, seo);
+    const startIndex = await getStartIndex(env, keys.length);
+
+    // نجرب كل مفتاح بالترتيب بدءاً من دوره، ولو خلّص كوتته ننتقل للتالي تلقائياً
+    for (let attempt = 0; attempt < keys.length; attempt++) {
+        const keyEntry = keys[(startIndex + attempt) % keys.length];
+
+        try {
+            const result = await callGemini(keyEntry.key, prompt);
+            result.keyUsed = keyEntry.index;
+            return result;
+        } catch (err) {
+            if (err.isRateLimit && attempt < keys.length - 1) {
+                continue; // جرّب المفتاح اللي بعده
+            }
+            if (err.isRateLimit) {
+                return fallbackRecommendations('الخدمة مشغولة حالياً، من فضلك حاول تاني بعد بضع دقائق.');
+            }
+            return fallbackRecommendations('تعذّر توليد التوصيات: ' + err.message);
+        }
+    }
+
+    return fallbackRecommendations('يرجى المحاولة بعد بضع دقائق.');
+}
+
+function buildPrompt(url, audits, safety, seo) {
+    return `
+أنت مهندس ويب خبير في الأداء والأرشفة (SEO). قدّامك تقرير Lighthouse كامل لموقع ${url}
+(موبايل وديسكتوب مع بعض)، فيه كل المشاكل الحقيقية اللي الموقع فاشل فيها (كبيرة وصغيرة، مش ملخص فقط).
+
+المشاكل المكتشفة (${audits.length} مشكلة، كل واحدة موسومة بجهاز mobile أو desktop):
 ${JSON.stringify(audits)}
 
 بيانات إضافية عن الصفحة: ${seo ? JSON.stringify(seo) : 'غير متاحة'}
 بيانات الأمان: ${safety ? JSON.stringify(safety) : 'غير متاحة'}
 
-المطلوب منك بالظبط، لكل مشكلة من أهم 8 مشاكل (الأعلى تأثيراً بس):
-- severity: صنّفها "critical" (لو بتأثر بشكل كبير جداً على الأداء/الأرشفة/الأمان) أو "high" أو "medium" فقط
+المطلوب منك بالظبط، لكل مشكلة مهمة (اختار أهمها، صغيرة كانت أو كبيرة، بحد أقصى 12 مشكلة):
+- severity: صنّفها "critical" أو "high" أو "medium" فقط، حسب حجم تأثيرها الفعلي
 - title: اسم المشكلة بالعربي وبشكل مباشر
-- impact: تأثيرها الفعلي بالأرقام (مثال: "بيبطّئ تحميل الصفحة 1.2 ثانية" أو "بيكبّر حجم الصفحة 340 كيلوبايت")
-- instructions: تعليمات عملية دقيقة تتنفذ فوراً (خطوات، مش كلام عام). لو المشكلة عن ملف معين
-  (صورة، سكريبت...) اذكر اسمه من affectedItems لو موجود
-- codeExample: كود فعلي جاهز للنسخ يحل المشكلة (HTML/CSS attribute جاهز، إعداد،...)، لو مفيش
-  كود منطقي للمشكلة دي سيبها null صراحة (متختلقش كود وهمي)
+- impact: تأثيرها الفعلي بالأرقام (مثال: "بيبطّئ التحميل 1.2 ثانية على الموبايل")
+- steps: مصفوفة (array) من الخطوات العملية المرقّمة تلقائياً، كل خطوة جملة قصيرة واحدة ومباشرة
+  (متكتبش الخطوات كلها في نص واحد طويل، كل خطوة عنصر منفصل في المصفوفة)
+- codeExample: كود فعلي جاهز للنسخ يحل المشكلة، أو null صراحة لو مفيش كود منطقي (متختلقش كود وهمي)
 
 وبرضو:
 - suggestedMetaDescription: لو الـmeta description ناقصة أو قصيرة، وصف Meta جاهز (155 حرف تقريباً)
@@ -260,54 +330,56 @@ ${JSON.stringify(audits)}
 رد بصيغة JSON فقط بالشكل ده بالظبط، من غير أي نص زيادة قبله أو بعده، ومن غير علامات كود markdown:
 {
   "fixes": [
-    { "severity": "critical", "title": "...", "impact": "...", "instructions": "...", "codeExample": "..." }
+    { "severity": "critical", "title": "...", "impact": "...", "steps": ["...", "..."], "codeExample": "..." }
   ],
   "suggestedMetaDescription": "...",
   "schemaMarkup": "..."
 }
 `.trim();
+}
 
-    try {
-        const res = await fetch(
-            'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
-            {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'x-goog-api-key': env.GEMINI_API_KEY
-                },
-                body: JSON.stringify({
-                    contents: [{ role: 'user', parts: [{ text: prompt }] }],
-                    generationConfig: {
-                        temperature: 0.3,
-                        responseMimeType: 'application/json'
-                    }
-                })
-            }
-        );
-
-        if (!res.ok) {
-            const errData = await res.json().catch(() => ({}));
-            throw new Error(errData.error?.message || `فشل استدعاء Gemini (${res.status})`);
+async function callGemini(apiKey, prompt) {
+    const res = await fetch(
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
+        {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-goog-api-key': apiKey
+            },
+            body: JSON.stringify({
+                contents: [{ role: 'user', parts: [{ text: prompt }] }],
+                generationConfig: {
+                    temperature: 0.3,
+                    responseMimeType: 'application/json'
+                }
+            })
         }
+    );
 
-        const data = await res.json();
-        const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
-        const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-        const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : null;
-
-        return parsed || {
-            fixes: [{ title: 'تعذّر توليد التوصيات', impact: null, instructions: 'حاول تاني', codeExample: null }],
-            suggestedMetaDescription: null,
-            schemaMarkup: null
-        };
-    } catch (err) {
-        return {
-            fixes: [{ title: 'تعذّر توليد التوصيات', impact: null, instructions: err.message, codeExample: null }],
-            suggestedMetaDescription: null,
-            schemaMarkup: null
-        };
+    if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        const message = errData.error?.message || `فشل استدعاء Gemini (${res.status})`;
+        const error = new Error(message);
+        error.isRateLimit = res.status === 429;
+        throw error;
     }
+
+    const data = await res.json();
+    const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+    const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : null;
+
+    return parsed || fallbackRecommendations('تعذّر فهم رد الذكاء الاصطناعي.');
+}
+
+function fallbackRecommendations(message) {
+    return {
+        fixes: [{ severity: 'medium', title: 'تعذّر توليد التوصيات', impact: null, steps: [message], codeExample: null }],
+        suggestedMetaDescription: null,
+        schemaMarkup: null,
+        keyUsed: null
+    };
 }
 
 // ============================================================

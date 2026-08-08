@@ -67,6 +67,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupDriveConnection();
     setupCopyButtons();
     setupFixesFilter();
+    setupDeviceTabs();
 });
 
 const SEVERITY_LABELS = {
@@ -79,10 +80,13 @@ let currentFixes = [];
 let activeFilter = 'all';
 
 function renderResults(data) {
-    renderScoreGauges(data);
+    renderDevicePanel('mobile', data.mobile, data.safety);
+    renderDevicePanel('desktop', data.desktop, data.safety);
+
     currentFixes = data.aiRecommendations?.fixes || [];
     renderFixes();
     renderSummaryStrip();
+    renderKeyIndicator(data.aiRecommendations?.keyUsed);
 
     document.getElementById('result-meta').textContent =
         data.aiRecommendations?.suggestedMetaDescription || 'لا توجد توصية';
@@ -92,25 +96,54 @@ function renderResults(data) {
 }
 
 // ============================================================
-// دوائر تقدّم النتائج (SVG)
+// تابات الموبايل/الديسكتوب: دوائر النتائج + الصورة الفعلية
 // ============================================================
-function renderScoreGauges(data) {
-    const container = document.getElementById('score-gauges');
+function renderDevicePanel(device, deviceData, safety) {
+    const gaugesContainer = document.getElementById(`score-gauges-${device}`);
+    const screenshotEl = document.getElementById(`screenshot-${device}`);
 
     const gauges = [
-        { label: 'الأداء', value: data.speed?.performanceScore ?? null },
-        { label: 'الأرشفة (SEO)', value: data.speed?.seoScore ?? null },
-        { label: 'إمكانية الوصول', value: data.speed?.accessibilityScore ?? null },
+        { label: 'الأداء', value: deviceData?.performanceScore ?? null },
+        { label: 'الأرشفة (SEO)', value: deviceData?.seoScore ?? null },
+        { label: 'إمكانية الوصول', value: deviceData?.accessibilityScore ?? null },
         {
             label: 'الأمان',
-            value: data.safety ? (data.safety.isSafe ? 100 : 0) : null,
-            customText: data.safety ? (data.safety.isSafe ? 'آمن' : 'يوجد تهديد') : null
+            value: safety ? (safety.isSafe ? 100 : 0) : null,
+            customText: safety ? (safety.isSafe ? 'آمن' : 'يوجد تهديد') : null
         }
     ];
 
-    container.innerHTML = gauges.map(g => buildGaugeSVG(g.label, g.value, g.customText)).join('');
+    gaugesContainer.innerHTML = gauges.map(g => buildGaugeSVG(g.label, g.value, g.customText)).join('');
+
+    if (deviceData?.screenshot) {
+        screenshotEl.src = deviceData.screenshot;
+        screenshotEl.style.display = 'block';
+    } else {
+        screenshotEl.style.display = 'none';
+    }
 }
 
+function setupDeviceTabs() {
+    const tabsBar = document.getElementById('device-tabs');
+    if (!tabsBar) return;
+
+    tabsBar.addEventListener('click', (e) => {
+        const btn = e.target.closest('.device-tab');
+        if (!btn) return;
+
+        const device = btn.getAttribute('data-device');
+
+        tabsBar.querySelectorAll('.device-tab').forEach(b => b.classList.remove('is-active'));
+        btn.classList.add('is-active');
+
+        document.getElementById('device-panel-mobile').style.display = device === 'mobile' ? 'block' : 'none';
+        document.getElementById('device-panel-desktop').style.display = device === 'desktop' ? 'block' : 'none';
+    });
+}
+
+// ============================================================
+// دائرة تقدّم واحدة (SVG)
+// ============================================================
 function buildGaugeSVG(label, value, customText) {
     const radius = 42;
     const circumference = 2 * Math.PI * radius;
@@ -138,6 +171,15 @@ function buildGaugeSVG(label, value, customText) {
 }
 
 // ============================================================
+// مؤشر رقم مفتاح Gemini المستخدم (بسيط وغير ملحوظ)
+// ============================================================
+function renderKeyIndicator(keyUsed) {
+    const el = document.getElementById('key-indicator');
+    if (!el) return;
+    el.textContent = keyUsed ? `#${keyUsed}` : '';
+}
+
+// ============================================================
 // شريط الملخص العلوي
 // ============================================================
 function renderSummaryStrip() {
@@ -162,19 +204,21 @@ function renderSummaryStrip() {
 }
 
 // ============================================================
-// كروت الحلول (المشكلة فوق، الحل تحتها)
+// كروت الحلول (المشكلة فوق، الحل كخطوات مرقّمة تحتها)
 // ============================================================
 function renderFixes() {
     const container = document.getElementById('result-fixes');
     const countLabel = document.getElementById('fixes-count');
+    const keyIndicatorEl = document.getElementById('key-indicator');
+    const keyIndicatorHtml = keyIndicatorEl ? keyIndicatorEl.outerHTML : '';
 
     const visibleFixes = activeFilter === 'all'
         ? currentFixes
         : currentFixes.filter(f => (f.severity || 'medium') === activeFilter);
 
-    countLabel.textContent = currentFixes.length > 0
-        ? `الحلول المقترحة (${currentFixes.length})`
-        : 'الحلول المقترحة';
+    countLabel.innerHTML = currentFixes.length > 0
+        ? `الحلول المقترحة (${currentFixes.length}) ${keyIndicatorHtml}`
+        : `الحلول المقترحة ${keyIndicatorHtml}`;
 
     if (currentFixes.length === 0) {
         container.innerHTML = '<p class="fixes-empty">مفيش مشاكل كبيرة، الموقع في حالة كويسة 👍</p>';
@@ -189,6 +233,7 @@ function renderFixes() {
     container.innerHTML = visibleFixes.map((fix, index) => {
         const codeBlockId = `fix-code-${index}`;
         const severity = fix.severity && SEVERITY_LABELS[fix.severity] ? fix.severity : 'medium';
+        const steps = Array.isArray(fix.steps) ? fix.steps : (fix.instructions ? [fix.instructions] : []);
 
         return `
             <div class="fix-card fix-card--${severity}">
@@ -206,7 +251,9 @@ function renderFixes() {
 
                     <div class="fix-section">
                         <span class="fix-section-label fix-section-label--solution">الحل المقترح</span>
-                        <p class="fix-instructions">${escapeHtml(fix.instructions || '')}</p>
+                        <ol class="fix-steps">
+                            ${steps.map(step => `<li>${escapeHtml(step)}</li>`).join('')}
+                        </ol>
                     </div>
 
                     ${fix.codeExample ? `

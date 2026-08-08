@@ -89,8 +89,28 @@
 
                     <!-- ملخص عام + دوائر النتائج -->
                     <div class="report-overview">
-                        <div class="score-gauges" id="score-gauges">
-                            <!-- بيتولد ديناميكياً -->
+
+                        <div class="device-tabs" id="device-tabs">
+                            <button class="device-tab is-active" data-device="mobile">📱 الموبايل</button>
+                            <button class="device-tab" data-device="desktop">💻 الديسكتوب</button>
+                        </div>
+
+                        <div class="device-panel" id="device-panel-mobile">
+                            <div class="device-content">
+                                <div class="score-gauges" id="score-gauges-mobile"></div>
+                                <div class="device-screenshot-wrap">
+                                    <img id="screenshot-mobile" class="device-screenshot device-screenshot--mobile" alt="لقطة شاشة للموقع على الموبايل">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="device-panel" id="device-panel-desktop" style="display:none;">
+                            <div class="device-content">
+                                <div class="score-gauges" id="score-gauges-desktop"></div>
+                                <div class="device-screenshot-wrap">
+                                    <img id="screenshot-desktop" class="device-screenshot device-screenshot--desktop" alt="لقطة شاشة للموقع على الديسكتوب">
+                                </div>
+                            </div>
                         </div>
 
                         <div class="report-summary-strip" id="report-summary-strip">
@@ -101,7 +121,7 @@
                     <!-- الحلول المقترحة -->
                     <div class="result-block">
                         <div class="fixes-header">
-                            <h3 id="fixes-count">الحلول المقترحة</h3>
+                            <h3 id="fixes-count">الحلول المقترحة <span id="key-indicator" class="key-indicator"></span></h3>
                             <div class="fixes-filter" id="fixes-filter">
                                 <button class="filter-chip is-active" data-filter="all">الكل</button>
                                 <button class="filter-chip" data-filter="critical">حرجة</button>

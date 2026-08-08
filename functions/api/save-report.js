@@ -133,9 +133,9 @@ async function appendReportRow(accessToken, spreadsheetId, report) {
     const row = [
         new Date().toLocaleString('ar-EG'),
         report.url || '',
-        report.speed?.performanceScore ?? '',
+        report.mobile?.performanceScore ?? '',
         report.safety?.isSafe ? 'آمن' : 'يوجد تهديد',
-        report.speed?.seoScore ?? ''
+        report.mobile?.seoScore ?? ''
     ];
 
     const res = await fetch(

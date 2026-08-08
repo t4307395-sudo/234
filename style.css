@@ -1296,3 +1296,102 @@ a:hover {
 .fix-code-wrap .result-code {
     background-color: var(--code-bg);
 }
+
+/* ==========================================================================
+   تابات الموبايل/الديسكتوب + الصور الفعلية للموقع
+   ========================================================================== */
+
+.device-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.device-tab {
+    font-family: var(--font-family);
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 0.55rem 1.2rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-color);
+    background-color: var(--card-bg);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.device-tab:hover {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+.device-tab.is-active {
+    background: var(--gradient-brand);
+    border-color: transparent;
+    color: #fff;
+}
+
+.device-content {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+}
+
+@media (min-width: 720px) {
+    .device-content {
+        grid-template-columns: 1.3fr 1fr;
+        align-items: start;
+    }
+}
+
+.device-screenshot-wrap {
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    background-color: var(--code-bg);
+    max-height: 340px;
+    display: flex;
+    justify-content: center;
+}
+
+.device-screenshot {
+    width: 100%;
+    height: auto;
+    display: block;
+    object-fit: cover;
+}
+
+.device-screenshot--mobile {
+    max-width: 200px;
+}
+
+/* ==========================================================================
+   مؤشر رقم مفتاح Gemini (صغير وغير ملحوظ)
+   ========================================================================== */
+
+.key-indicator {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    opacity: 0.6;
+    font-weight: 400;
+    margin-right: 0.3rem;
+}
+
+/* ==========================================================================
+   خطوات الحل المرقّمة
+   ========================================================================== */
+
+.fix-steps {
+    padding-inline-start: 1.4rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.fix-steps li {
+    font-size: 0.88rem;
+    color: var(--text-color);
+    line-height: 1.7;
+    padding-inline-start: 0.3rem;
+}
