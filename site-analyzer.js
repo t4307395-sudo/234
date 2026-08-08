@@ -98,7 +98,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         } catch (err) {
             console.error(err);
-            alert('حدث خطأ أثناء الاتصال بالسيرفر');
+            alert('حدث خطأ أثناء الاتصال ');
         } finally {
             btn.disabled = false;
             loading.style.display = 'none';
@@ -149,7 +149,7 @@ function renderComparisonBadge(comparison, fromCache) {
     if (fromCache) {
         badge.style.display = 'inline-flex';
         badge.className = 'comparison-badge comparison-badge--cache';
-        badge.textContent = '⚡ نتيجة من الكاش (اتفحص قبل كده خلال آخر ساعة)';
+        badge.textContent = '⚡ اتفحص قبل كده حاول كمان ساعة';
         return;
     }
 
